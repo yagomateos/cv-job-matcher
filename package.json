@@ -7,7 +7,10 @@
     "dev": "vite",
     "build": "vite build",
     "lint": "oxlint",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "test:e2e": "node scripts/e2e/test.mjs",
+    "screenshots": "node scripts/e2e/screenshots.mjs",
+    "generate:geo": "node scripts/generate-geo.mjs"
   },
   "dependencies": {
     "pdfjs-dist": "^6.5.438",
@@ -19,6 +22,7 @@
     "@types/react-dom": "^18.3.7",
     "@vitejs/plugin-react": "^6.1.2",
     "oxlint": "^1.90.0",
+    "puppeteer-core": "^25.17.0",
     "topojson-client": "^3.1.0",
     "vite": "^8.3.6",
     "world-atlas": "^2.0.2",
