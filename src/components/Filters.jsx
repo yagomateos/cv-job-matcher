@@ -1,8 +1,22 @@
 import { CONTINENT_LABELS } from '../services/geoService'
+import { SENIORITY_LABELS } from '../services/jobMeta'
+
+// Salario mínimo anual (en €, aproximado: se convierten otras monedas y periodos)
+const SALARY_OPTIONS = [0, 20000, 30000, 40000, 50000, 60000, 80000, 100000]
+
+// Antigüedad máxima de la oferta (días; 0 = cualquier fecha)
+const AGE_OPTIONS = [
+  [0, 'Cualquier fecha'],
+  [1, 'Últimas 24 horas'],
+  [3, 'Últimos 3 días'],
+  [7, 'Última semana'],
+  [30, 'Último mes'],
+]
 
 /**
  * Filtros del panel lateral:
  * - Ubicación: continente + país (con nº de ofertas) + incluir remoto sin restricción de país.
+ * - Nivel (seniority), salario mínimo anual y fecha de publicación.
  * - Fuentes: casillas con contador.
  * @param {{ code: string, name: string, count: number }[]} countryOptions países disponibles
  * @param {{ name: string, count: number, enabled: boolean }[]} sources
@@ -16,6 +30,15 @@ export default function Filters({
   includeWorldwide,
   onIncludeWorldwideChange,
   worldwideCount,
+  seniority,
+  onSeniorityChange,
+  seniorityCounts,
+  minSalary,
+  onMinSalaryChange,
+  includeNoSalary,
+  onIncludeNoSalaryChange,
+  maxAge,
+  onMaxAgeChange,
   sources,
   onToggleSource,
 }) {
@@ -74,6 +97,68 @@ export default function Filters({
           </span>
         </span>
       </label>
+
+      <div className="field">
+        <label htmlFor="seniority" className="field__label">
+          Nivel
+        </label>
+        <select
+          id="seniority"
+          className="input select"
+          value={seniority}
+          onChange={(e) => onSeniorityChange(e.target.value)}
+        >
+          <option value="all">Todos los niveles</option>
+          {Object.entries(SENIORITY_LABELS).map(([value, label]) => (
+            <option key={value} value={value}>
+              {label} ({seniorityCounts[value] || 0})
+            </option>
+          ))}
+        </select>
+      </div>
+
+      <div className="field">
+        <label htmlFor="salary" className="field__label">
+          Salario mínimo (anual)
+        </label>
+        <select
+          id="salary"
+          className="input select"
+          value={minSalary}
+          onChange={(e) => onMinSalaryChange(Number(e.target.value))}
+        >
+          {SALARY_OPTIONS.map((v) => (
+            <option key={v} value={v}>
+              {v === 0 ? 'Cualquiera' : `Desde ${v / 1000}.000 €`}
+            </option>
+          ))}
+        </select>
+        <label className="toggle toggle--compact">
+          <input
+            type="checkbox"
+            checked={includeNoSalary}
+            onChange={(e) => onIncludeNoSalaryChange(e.target.checked)}
+            disabled={minSalary === 0}
+          />
+          <span>
+            Incluir ofertas sin salario indicado
+            <span className="toggle__hint">Otras monedas y salarios mensuales se convierten de forma aproximada</span>
+          </span>
+        </label>
+      </div>
+
+      <div className="field">
+        <label htmlFor="age" className="field__label">
+          Fecha de publicación
+        </label>
+        <select id="age" className="input select" value={maxAge} onChange={(e) => onMaxAgeChange(Number(e.target.value))}>
+          {AGE_OPTIONS.map(([v, label]) => (
+            <option key={v} value={v}>
+              {label}
+            </option>
+          ))}
+        </select>
+      </div>
 
       <fieldset className="sources">
         <legend className="field__label">Fuentes</legend>

@@ -1,10 +1,19 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { calculateMatch, extractJobSkills } from '../services/cvService'
+import { detectSeniority, salaryToAnnualEUR } from '../services/jobMeta'
 import { fetchAllJobs } from '../services/jobService'
 
-/** Calcula (una sola vez) las skills que pide cada oferta y las guarda en job.skills. */
+/**
+ * Calcula (una sola vez por oferta) los datos derivados que usan el match y los filtros:
+ * skills que pide, seniority y salario anual aproximado en €.
+ */
 function withSkills(jobs) {
-  for (const job of jobs) if (!job.skills) job.skills = extractJobSkills(job)
+  for (const job of jobs) {
+    if (job.skills) continue
+    job.skills = extractJobSkills(job)
+    job.seniority = detectSeniority(job)
+    job.salaryEUR = salaryToAnnualEUR(job.salary)
+  }
   return jobs
 }
 

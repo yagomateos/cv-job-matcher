@@ -3,17 +3,21 @@ import CVUploader from './components/CVUploader'
 import ExternalSearch from './components/ExternalSearch'
 import Filters from './components/Filters'
 import Home from './components/Home'
-import { AlertIcon, BriefcaseIcon, MoonIcon, RefreshIcon, SlidersIcon, SunIcon } from './components/Icons'
+import { AlertIcon, BookmarkIcon, BriefcaseIcon, MoonIcon, RefreshIcon, SlidersIcon, SunIcon } from './components/Icons'
 import JobCard from './components/JobCard'
 import JobMap from './components/JobMap'
 import Pagination from './components/Pagination'
+import SavedJobs from './components/SavedJobs'
+import SkillGaps from './components/SkillGaps'
 import SearchBar from './components/SearchBar'
 import ThresholdSlider from './components/ThresholdSlider'
 import { useCV } from './hooks/useCV'
 import { useJobs } from './hooks/useJobs'
+import { useSavedJobs } from './hooks/useSavedJobs'
 import { useTheme } from './hooks/useTheme'
 import { ROLE_LABELS } from './services/cvService'
 import { CONTINENT_LABELS, COUNTRY_BY_CODE, isLocalJob } from './services/geoService'
+import { ageInDays } from './services/jobMeta'
 import { SOURCE_NAMES } from './services/jobService'
 import './App.css'
 
@@ -48,6 +52,26 @@ function matchesGeo(job, { continent, country, includeWorldwide }) {
   return true
 }
 
+/**
+ * ¿La oferta cumple los filtros de nivel, salario y fecha?
+ * - seniority: clave de SENIORITY_LABELS o 'all'
+ * - minSalary: salario anual mínimo en € (0 = sin filtro); includeNoSalary: incluir las que no lo indican
+ * - maxAge: días máximos desde la publicación (0 = sin filtro); sin fecha conocida, no se descarta
+ */
+function matchesMeta(job, { seniority, minSalary, includeNoSalary, maxAge }) {
+  if (seniority !== 'all' && job.seniority !== seniority) return false
+  if (minSalary > 0) {
+    if (job.salaryEUR == null) {
+      if (!includeNoSalary) return false
+    } else if (job.salaryEUR < minSalary) return false
+  }
+  if (maxAge > 0) {
+    const age = ageInDays(job.date)
+    if (age != null && age > maxAge) return false
+  }
+  return true
+}
+
 export default function App() {
   const cv = useCV()
   const { theme, toggleTheme } = useTheme()
@@ -72,6 +96,14 @@ export default function App() {
   const [includeWorldwide, setIncludeWorldwide] = useState(true)
   const [disabledSources, setDisabledSources] = useState(() => new Set())
   const [sortBy, setSortBy] = useState('match')
+  // Nivel, salario y fecha
+  const [seniority, setSeniority] = useState('all')
+  const [minSalary, setMinSalary] = useState(0)
+  const [includeNoSalary, setIncludeNoSalary] = useState(true)
+  const [maxAge, setMaxAge] = useState(0)
+  // Vista: resultados de la búsqueda o "Mis ofertas" (guardadas)
+  const [view, setView] = useState('results')
+  const savedJobs = useSavedJobs()
   // En móvil el panel de filtros está plegado
   const [filtersOpen, setFiltersOpen] = useState(false)
   // Reloj para refrescar el texto "Actualizado hace X min"
@@ -85,13 +117,30 @@ export default function App() {
   const hasCV = cv.cvSkills.length > 0
 
   // 1) Búsqueda por texto (título, empresa, etiquetas y ubicación: "Barcelona" funciona)
-  const textJobs = useMemo(() => {
+  const searchedJobs = useMemo(() => {
     const q = search.trim().toLowerCase()
     if (!q) return jobs
     return jobs.filter((job) =>
       [job.title, job.company, job.location, ...job.tags].some((f) => f?.toLowerCase().includes(q)),
     )
   }, [jobs, search])
+
+  // 1b) + nivel, salario y fecha. Afecta a todo lo demás (mapa, contadores, resultados)
+  const textJobs = useMemo(
+    () => searchedJobs.filter((job) => matchesMeta(job, { seniority, minSalary, includeNoSalary, maxAge })),
+    [searchedJobs, seniority, minSalary, includeNoSalary, maxAge],
+  )
+
+  // Contadores del selector de nivel (con el resto de filtros aplicados, sin el de nivel)
+  const seniorityCounts = useMemo(() => {
+    const counts = {}
+    for (const job of searchedJobs) {
+      if (matchesMeta(job, { seniority: 'all', minSalary, includeNoSalary, maxAge })) {
+        counts[job.seniority] = (counts[job.seniority] || 0) + 1
+      }
+    }
+    return counts
+  }, [searchedJobs, minSalary, includeNoSalary, maxAge])
 
   // 2) Lo que ve el mapa: texto + fuentes activas, SIN filtro de ubicación (para ver todos los países)
   const mapJobs = useMemo(
@@ -131,6 +180,10 @@ export default function App() {
     [...disabledSources],
     sortBy,
     minScore,
+    seniority,
+    minSalary,
+    includeNoSalary,
+    maxAge,
     cv.role,
   ])
   const [pageState, setPageState] = useState({ key: filterKey, page: 1 })
@@ -198,7 +251,10 @@ export default function App() {
     (minScore > 0 ? 1 : 0) +
     (continent !== 'all' || country !== 'all' ? 1 : 0) +
     (!includeWorldwide ? 1 : 0) +
-    (disabledSources.size > 0 ? 1 : 0)
+    (disabledSources.size > 0 ? 1 : 0) +
+    (seniority !== 'all' ? 1 : 0) +
+    (minSalary > 0 ? 1 : 0) +
+    (maxAge > 0 ? 1 : 0)
   const toggleFilters = () => setFiltersOpen((open) => !open)
 
   const toggleSource = (name) =>
@@ -251,7 +307,7 @@ export default function App() {
           <Home loading={cv.loading} error={cv.error} sourceNames={SOURCE_NAMES} onUpload={cv.uploadCV} />
         </main>
       ) : (
-        <div className="container layout">
+        <div className={`container layout ${view === 'saved' ? 'is-saved-view' : ''}`}>
           <aside className="sidebar">
             <CVUploader
               fileName={cv.fileName}
@@ -330,13 +386,54 @@ export default function App() {
                 includeWorldwide={includeWorldwide}
                 onIncludeWorldwideChange={setIncludeWorldwide}
                 worldwideCount={worldwideCount}
+                seniority={seniority}
+                onSeniorityChange={setSeniority}
+                seniorityCounts={seniorityCounts}
+                minSalary={minSalary}
+                onMinSalaryChange={setMinSalary}
+                includeNoSalary={includeNoSalary}
+                onIncludeNoSalaryChange={setIncludeNoSalary}
+                maxAge={maxAge}
+                onMaxAgeChange={setMaxAge}
                 sources={sources}
                 onToggleSource={toggleSource}
               />
             </section>
+
+            {/* Solo en la vista de resultados: se calcula sobre las ofertas que se están viendo */}
+            {!loading && view === 'results' && <SkillGaps jobs={visibleJobs} />}
           </aside>
 
           <main className="results">
+            {/* Pestañas: resultados de la búsqueda / ofertas guardadas */}
+            <div className="view-tabs" role="tablist" aria-label="Vista">
+              <button
+                type="button"
+                role="tab"
+                aria-selected={view === 'results'}
+                className={`view-tab ${view === 'results' ? 'is-active' : ''}`}
+                onClick={() => setView('results')}
+              >
+                Ofertas
+                {!loading && <span className="view-tab__count">{visibleJobs.length}</span>}
+              </button>
+              <button
+                type="button"
+                role="tab"
+                aria-selected={view === 'saved'}
+                className={`view-tab ${view === 'saved' ? 'is-active' : ''}`}
+                onClick={() => setView('saved')}
+              >
+                <BookmarkIcon size={15} filled={view === 'saved'} />
+                Mis ofertas
+                <span className="view-tab__count">{savedJobs.saved.length}</span>
+              </button>
+            </div>
+
+            {view === 'saved' ? (
+              <SavedJobs saved={savedJobs.saved} onStatusChange={savedJobs.setStatus} onRemove={savedJobs.remove} />
+            ) : (
+              <>
             <SearchBar search={search} onSearchChange={setSearch} sortBy={sortBy} onSortChange={setSortBy} />
 
             {error && (
@@ -414,7 +511,12 @@ export default function App() {
                     <>
                       <div className="jobs-grid">
                         {pageJobs.map((job) => (
-                          <JobCard key={job.id} job={job} />
+                          <JobCard
+                            key={job.id}
+                            job={job}
+                            saved={savedJobs.isSaved(job.id)}
+                            onToggleSave={savedJobs.toggleSave}
+                          />
                         ))}
                       </div>
                       <Pagination
@@ -433,6 +535,8 @@ export default function App() {
                   )}
                 </>
               )
+            )}
+              </>
             )}
 
             <ExternalSearch

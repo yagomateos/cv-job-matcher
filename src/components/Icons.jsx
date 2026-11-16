@@ -116,6 +116,30 @@ export const SlidersIcon = (p) => (
   </Icon>
 )
 
+/** Marcador (guardar oferta). filled = guardada. */
+export const BookmarkIcon = ({ filled = false, ...p }) => (
+  <Icon {...p} fill={filled ? 'currentColor' : 'none'}>
+    <path d="M6 3h12a1 1 0 0 1 1 1v17l-7-4-7 4V4a1 1 0 0 1 1-1z" />
+  </Icon>
+)
+
+export const TrashIcon = (p) => (
+  <Icon {...p}>
+    <path d="M4 7h16" />
+    <path d="M10 11v6" />
+    <path d="M14 11v6" />
+    <path d="M6 7l1 13h10l1-13" />
+    <path d="M9 7V4h6v3" />
+  </Icon>
+)
+
+export const TrendIcon = (p) => (
+  <Icon {...p}>
+    <path d="M3 17l6-6 4 4 8-8" />
+    <path d="M15 7h6v6" />
+  </Icon>
+)
+
 export const MinusIcon = (p) => (
   <Icon strokeWidth={3} {...p}>
     <path d="M5 12h14" />

@@ -1,5 +1,6 @@
 import { useState } from 'react'
-import { CheckIcon, ClockIcon, ExternalIcon, MoneyIcon, PinIcon, PlusIcon } from './Icons'
+import { SENIORITY_LABELS } from '../services/jobMeta'
+import { BookmarkIcon, CheckIcon, ClockIcon, ExternalIcon, MoneyIcon, PinIcon, PlusIcon } from './Icons'
 
 /** Devuelve "Hoy" o "Hace Xd" a partir de una fecha ISO. */
 function relativeDate(date) {
@@ -17,7 +18,11 @@ function scoreColor(score) {
   return 'var(--gray)'
 }
 
-export default function JobCard({ job }) {
+/**
+ * @param {boolean} saved si la oferta está en "Mis ofertas"
+ * @param {(job) => void} onToggleSave guardar / quitar de "Mis ofertas"
+ */
+export default function JobCard({ job, saved = false, onToggleSave }) {
   const [logoError, setLogoError] = useState(false)
   const date = relativeDate(job.date)
   const showLogo = job.logo && !logoError
@@ -66,6 +71,9 @@ export default function JobCard({ job }) {
             <ClockIcon size={14} /> {date}
           </li>
         )}
+        {job.seniority && job.seniority !== 'unknown' && (
+          <li className="job-card__level">{SENIORITY_LABELS[job.seniority]}</li>
+        )}
         {job.salary && (
           <li className="job-card__salary">
             <MoneyIcon size={14} /> {job.salary}
@@ -102,9 +110,23 @@ export default function JobCard({ job }) {
           {date && <span className="only-mobile">{date} · </span>}
           vía <strong>{job.source}</strong>
         </span>
-        <a className="btn btn--primary btn--small" href={job.url} target="_blank" rel="noopener noreferrer">
-          Ver oferta <ExternalIcon size={14} className="hide-mobile" />
-        </a>
+        <div className="job-card__actions">
+          {onToggleSave && (
+            <button
+              type="button"
+              className={`btn btn--icon btn--small save-btn ${saved ? 'is-saved' : ''}`}
+              onClick={() => onToggleSave(job)}
+              aria-pressed={saved}
+              aria-label={saved ? 'Quitar de mis ofertas' : 'Guardar en mis ofertas'}
+              title={saved ? 'Quitar de mis ofertas' : 'Guardar en mis ofertas'}
+            >
+              <BookmarkIcon size={18} filled={saved} />
+            </button>
+          )}
+          <a className="btn btn--primary btn--small" href={job.url} target="_blank" rel="noopener noreferrer">
+            Ver oferta <ExternalIcon size={14} className="hide-mobile" />
+          </a>
+        </div>
       </footer>
     </article>
   )
