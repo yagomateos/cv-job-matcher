@@ -15,6 +15,7 @@ npm run build          # siempre antes de dar algo por terminado
 npm run lint           # oxlint
 npm run test:e2e       # Chrome real contra BASE_URL (por defecto localhost:5173, con dev arrancado)
 npm run screenshots    # regenera docs/screenshots/ (usa ALLOW_ADZUNA=1)
+npm run video          # graba docs/demo.webm (demo guiada; usa ALLOW_ADZUNA=1)
 npm run generate:geo   # regenera src/data/ (no editar esos archivos a mano)
 ```
 

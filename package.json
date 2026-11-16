@@ -10,7 +10,8 @@
     "preview": "vite preview",
     "test:e2e": "node scripts/e2e/test.mjs",
     "screenshots": "node scripts/e2e/screenshots.mjs",
-    "generate:geo": "node scripts/generate-geo.mjs"
+    "generate:geo": "node scripts/generate-geo.mjs",
+    "video": "node scripts/e2e/video.mjs"
   },
   "dependencies": {
     "pdfjs-dist": "^6.5.438",
