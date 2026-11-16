@@ -5,7 +5,7 @@ con las skills que tienes y las que te faltan para cada una.
 
 **En producción:** https://frontend-jobs-app-psi.vercel.app
 
-▶️ **[Ver el vídeo de demostración (75 s)](docs/demo.webm)**: subir el CV, resultados, mapa, búsqueda, Mis ofertas y modo claro.
+▶️ **[Ver el vídeo de demostración (1 min)](docs/demo.mp4)**: subir el CV, resultados, mapa, búsqueda, Mis ofertas y modo claro.
 
 ![Resultados: tu CV, filtros y mapa mundial de ofertas](docs/screenshots/resultados-escritorio.png)
 
@@ -65,7 +65,7 @@ npm run dev                  # http://localhost:5173
 | `npm run lint` | oxlint |
 | `npm run test:e2e` | Pruebas en un Chrome real: coherencia de números del mapa, mis ofertas, filtros, móvil |
 | `npm run screenshots` | Regenera las capturas de `docs/screenshots/` |
-| `npm run video` | Graba `docs/demo.webm` (demo guiada con cursor y subtítulos; usa `ALLOW_ADZUNA=1`) |
+| `npm run video` | Graba `docs/demo.mp4` (demo guiada con cursor y subtítulos; usa `ALLOW_ADZUNA=1`) |
 | `npm run generate:geo` | Regenera `src/data/` (contornos y países) |
 
 Las pruebas y capturas usan tu Chrome instalado (`CHROME_PATH` para otra ruta) y, por defecto,
@@ -96,7 +96,7 @@ src/
 │                 jobMeta (nivel, salario en €, antigüedad)
 └── data/         countries.js y worldMap.js (generados por scripts/generate-geo.mjs)
 scripts/e2e/      pruebas e2e y capturas (puppeteer-core + Chrome instalado)
-docs/screenshots/ capturas del README · docs/demo.webm vídeo de demostración
+docs/screenshots/ capturas del README · docs/demo.mp4 vídeo de demostración
 ```
 
 Para añadir una skill: `SKILL_GROUPS` y `SKILL_ALIASES` en `src/services/cvService.js`.

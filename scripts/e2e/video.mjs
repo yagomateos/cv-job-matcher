@@ -1,5 +1,5 @@
 /**
- * Graba un vídeo de demostración (docs/demo.webm) recorriendo la app como lo haría una persona:
+ * Graba un vídeo de demostración (docs/demo.mp4) recorriendo la app como lo haría una persona:
  * portada → subir CV (PDF de ejemplo generado al vuelo) → resultados → mapa → búsqueda →
  * Mis ofertas → modo claro.
  *
@@ -7,14 +7,14 @@
  *   BASE_URL=https://... ALLOW_ADZUNA=1 npm run video
  *
  * No necesita ffmpeg: se capturan los fotogramas con el screencast de Chrome (CDP) y se codifican
- * a WebM dentro del propio Chrome (canvas + MediaRecorder), respetando los tiempos reales.
+ * a MP4 (H.264) dentro del propio Chrome (WebCodecs + mp4-muxer).
  */
 import { mkdirSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { DESKTOP, launch, seed, sleep } from './helpers.mjs'
+import { BASE_URL, DESKTOP, launch, seed, sleep } from './helpers.mjs'
 
-const OUT = 'docs/demo.webm'
+const OUT = 'docs/demo.mp4'
 const W = DESKTOP.viewport.width
 const H = DESKTOP.viewport.height
 /** Pausas más largas que esto (sin cambios en pantalla) se acortan en el vídeo. */
@@ -183,12 +183,14 @@ const input = await page.$('input[type="file"]')
 await page.mouse.down()
 await page.mouse.up()
 await input.uploadFile(pdfPath)
+const fastFrom = Date.now() / 1000
 
 // Carga de ofertas
 await caption('2 · Detecta tu perfil, tus skills y tu ciudad', 'y busca en 14 fuentes de empleo a la vez')
 await page.waitForSelector('.job-card', { timeout: 60000 })
 await glide(W - 200, 200, 600)
 await page.waitForFunction(() => !document.querySelector('.progress-line'), { timeout: 60000 }).catch(() => {})
+const fastTo = Date.now() / 1000
 await sleep(1500)
 
 // Tarjetas
@@ -269,25 +271,46 @@ await cdp.send('Page.stopScreencast')
 console.log(`Fotogramas capturados: ${frames.length}`)
 if (errors.length) console.log('Errores de JavaScript:', errors)
 
-// ---------- 4. Codificación a WebM dentro de Chrome ----------
-// Tiempos del vídeo: los reales, pero acortando las pausas largas sin cambios
+// ---------- 4. Codificación a MP4 (H.264) dentro de Chrome ----------
+// Tiempos del vídeo: los reales, acortando las pausas largas sin cambios y acelerando (x4) la
+// espera mientras llegan las ofertas.
 const times = []
 let acc = 0
 frames.forEach((f, i) => {
-  if (i > 0) acc += Math.min(MAX_GAP, f.t - frames[i - 1].t)
+  if (i > 0) {
+    const inFast = f.t > fastFrom && f.t < fastTo
+    acc += Math.min(MAX_GAP, (f.t - frames[i - 1].t) / (inFast ? 4 : 1))
+  }
   times.push(acc)
 })
 const total = acc + 1
+const FPS = 30
 
+// WebCodecs (VideoEncoder) + mp4-muxer: MP4 "normal" (no fragmentado) con moov al principio,
+// que es lo que aceptan WhatsApp, Telegram, Slack, etc. Se codifica a 30 fps constantes.
 const enc = await browser.newPage()
-await enc.setViewport({ width: W, height: H })
+// WebCodecs solo existe en contextos seguros (localhost / https), no en about:blank
+await enc.goto(new URL('favicon.svg', BASE_URL).href).catch(() => enc.goto(BASE_URL))
+// El SVG no tiene <head>: se evalúa la librería (UMD, define window.Mp4Muxer) directamente
+await enc.evaluate(readFileSync('node_modules/mp4-muxer/build/mp4-muxer.js', 'utf8'))
 await enc.exposeFunction('__frame', (i) => frames[i].data)
 const b64 = await enc.evaluate(
-  async (times, total, W, H) => {
-    const canvas = document.createElement('canvas')
-    canvas.width = W
-    canvas.height = H
-    document.body.appendChild(canvas)
+  async (times, total, W, H, FPS) => {
+    const { Muxer, ArrayBufferTarget } = window.Mp4Muxer
+    const config = { codec: 'avc1.640028', width: W, height: H, bitrate: 1_500_000, framerate: FPS }
+    if (!(await VideoEncoder.isConfigSupported(config)).supported) throw new Error('H.264 no soportado')
+    const muxer = new Muxer({
+      target: new ArrayBufferTarget(),
+      video: { codec: 'avc', width: W, height: H, frameRate: FPS },
+      fastStart: 'in-memory',
+    })
+    let failure = null
+    const encoder = new VideoEncoder({
+      output: (chunk, meta) => muxer.addVideoChunk(chunk, meta),
+      error: (e) => (failure = e),
+    })
+    encoder.configure(config)
+    const canvas = new OffscreenCanvas(W, H)
     const ctx = canvas.getContext('2d')
     const load = async (i) => {
       const img = new Image()
@@ -295,29 +318,25 @@ const b64 = await enc.evaluate(
       await img.decode()
       return img
     }
-    ctx.drawImage(await load(0), 0, 0, W, H)
-    const stream = canvas.captureStream(30)
-    const mime = MediaRecorder.isTypeSupported('video/webm;codecs=vp9') ? 'video/webm;codecs=vp9' : 'video/webm'
-    const rec = new MediaRecorder(stream, { mimeType: mime, videoBitsPerSecond: 6_000_000 })
-    const chunks = []
-    rec.ondataavailable = (e) => e.data.size && chunks.push(e.data)
-    rec.start(1000)
-    const t0 = performance.now()
-    let next = load(1 < times.length ? 1 : 0)
-    for (let i = 1; i < times.length; i++) {
-      const img = await next
-      if (i + 1 < times.length) next = load(i + 1)
-      const wait = times[i] * 1000 - (performance.now() - t0)
-      if (wait > 0) await new Promise((r) => setTimeout(r, wait))
-      ctx.drawImage(img, 0, 0, W, H)
+    let idx = -1
+    const n = Math.ceil(total * FPS)
+    for (let k = 0; k < n; k++) {
+      const t = k / FPS
+      let j = idx
+      while (j + 1 < times.length && times[j + 1] <= t) j++
+      if (j !== idx) {
+        ctx.drawImage(await load(j), 0, 0, W, H)
+        idx = j
+      }
+      const frame = new VideoFrame(canvas, { timestamp: Math.round(t * 1e6), duration: Math.round(1e6 / FPS) })
+      encoder.encode(frame, { keyFrame: k % (FPS * 2) === 0 })
+      frame.close()
+      if (encoder.encodeQueueSize > 10) await new Promise((r) => setTimeout(r, 5))
+      if (failure) throw failure
     }
-    const end = total * 1000 - (performance.now() - t0)
-    if (end > 0) await new Promise((r) => setTimeout(r, end))
-    await new Promise((r) => {
-      rec.onstop = r
-      rec.stop()
-    })
-    const blob = new Blob(chunks, { type: 'video/webm' })
+    await encoder.flush()
+    muxer.finalize()
+    const blob = new Blob([muxer.target.buffer], { type: 'video/mp4' })
     return await new Promise((resolve) => {
       const fr = new FileReader()
       fr.onload = () => resolve(fr.result.split(',')[1])
@@ -328,6 +347,7 @@ const b64 = await enc.evaluate(
   total,
   W,
   H,
+  FPS,
 )
 mkdirSync('docs', { recursive: true })
 writeFileSync(OUT, Buffer.from(b64, 'base64'))
