@@ -141,7 +141,8 @@ async function scrollToEl(selector, offset = 80, ms = 900) {
           const t = Math.min(1, (performance.now() - t0) / dur)
           const e = t < 0.5 ? 2 * t * t : 1 - (-2 * t + 2) ** 2 / 2
           window.scrollTo(0, start + (end - start) * e)
-          t < 1 ? setTimeout(step, 16) : resolve()
+          if (t < 1) setTimeout(step, 16)
+          else resolve()
         }
         step()
       })
