@@ -56,8 +56,11 @@ Para añadir una skill: `SKILL_GROUPS` y `SKILL_ALIASES` en `src/services/cvServ
 
 ## Desplegar
 
-```bash
-vercel deploy --prod
-```
+El repositorio está conectado a Vercel:
+
+- **Push a `main`** → despliegue a producción automático.
+- **Push a cualquier otra rama** (o pull request) → despliegue de vista previa con su propia URL.
+
+También se puede desplegar a mano con `vercel deploy --prod`.
 
 Datos geográficos: Natural Earth (dominio público) y world-countries (ODbL).
