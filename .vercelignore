@@ -1,0 +1,6 @@
+# No subir a Vercel: dependencias, build local ni archivos con claves
+node_modules
+dist
+.env
+.env.*
+!.env.example

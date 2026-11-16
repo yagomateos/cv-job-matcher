@@ -1,0 +1,48 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "framework": "vite",
+  "buildCommand": "npm run build",
+  "outputDirectory": "dist",
+  "routes": [
+    {
+      "src": "^/proxy/himalayas/(.*)$",
+      "dest": "https://himalayas.app/$1"
+    },
+    {
+      "src": "^/proxy/workingnomads/(.*)$",
+      "dest": "https://www.workingnomads.com/$1"
+    },
+    {
+      "src": "^/proxy/tecnoempleo/(.*)$",
+      "dest": "https://www.tecnoempleo.com/$1"
+    },
+    {
+      "src": "^/proxy/adzuna/(.*)$",
+      "dest": "https://api.adzuna.com/v1/api/$1",
+      "transforms": [
+        {
+          "type": "request.query",
+          "op": "set",
+          "target": {
+            "key": "app_id"
+          },
+          "args": "$ADZUNA_APP_ID",
+          "env": [
+            "ADZUNA_APP_ID"
+          ]
+        },
+        {
+          "type": "request.query",
+          "op": "set",
+          "target": {
+            "key": "app_key"
+          },
+          "args": "$ADZUNA_APP_KEY",
+          "env": [
+            "ADZUNA_APP_KEY"
+          ]
+        }
+      ]
+    }
+  ]
+}
