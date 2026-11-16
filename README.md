@@ -5,6 +5,32 @@ con las skills que tienes y las que te faltan para cada una.
 
 **En producción:** https://frontend-jobs-app-psi.vercel.app
 
+![Resultados: tu CV, filtros y mapa mundial de ofertas](docs/screenshots/resultados-escritorio.png)
+
+## Capturas
+
+| Mapa: pasa el ratón por un país | Tarjetas: lo que tienes y lo que te falta |
+|---|---|
+| ![Mapa con la ventana de ofertas de España](docs/screenshots/mapa-hover.png) | ![Tarjetas de oferta con % de match y skills](docs/screenshots/tarjetas-escritorio.png) |
+
+| Mis ofertas: seguimiento de candidaturas | Modo claro |
+|---|---|
+| ![Mis ofertas con estados](docs/screenshots/mis-ofertas-escritorio.png) | ![Resultados en modo claro](docs/screenshots/resultados-claro.png) |
+
+**Portada**
+
+![Portada](docs/screenshots/portada-escritorio.png)
+
+**Móvil**
+
+<p>
+  <img src="docs/screenshots/movil-portada.png" alt="Portada en móvil" width="260">
+  <img src="docs/screenshots/movil-resultados.png" alt="Resultados en móvil" width="260">
+  <img src="docs/screenshots/movil-mapa.png" alt="Mapa en móvil con España seleccionada" width="260">
+</p>
+
+> Las capturas se generan con `npm run screenshots` (ver más abajo) y muestran un CV de ejemplo.
+
 ## Qué hace
 
 - **Lee el CV en el navegador** (pdf.js): el PDF no se envía a ningún servidor.
@@ -15,8 +41,12 @@ con las skills que tienes y las que te faltan para cada una.
   RemoteOK, Remotive, We Work Remotely, Working Nomads, Jobicy, NoFluffJobs, GetOnBoard,
   Landing.jobs, Arbeitnow, Tecnoempleo y Manfred. Más enlaces de búsqueda a portales sin API
   (LinkedIn, Indeed, Glassdoor, InfoJobs…).
-- **Mapa mundial interactivo** (SVG propio), filtros por continente, país, fuente y match mínimo,
-  paginación, modo claro/oscuro y diseño adaptado a móvil.
+- **Mapa mundial interactivo** (SVG propio): burbujas por país, zoom por continente y país,
+  ventana con las mejores ofertas al pasar el ratón.
+- **Filtros**: continente, país, nivel (junior → lead), salario mínimo anual en €, fecha,
+  fuente y match mínimo. Paginación, modo claro/oscuro y diseño adaptado a móvil.
+- **Skills que más te piden** y no tienes, sobre las ofertas que estás viendo.
+- **Mis ofertas**: guarda ofertas y sigue cada candidatura (aplicada, entrevista, oferta…).
 
 ## Arrancar en local
 
@@ -26,7 +56,18 @@ cp .env.example .env.local   # y rellena las claves de Adzuna (opcional)
 npm run dev                  # http://localhost:5173
 ```
 
-Scripts: `npm run dev`, `npm run build`, `npm run preview`, `npm run lint`.
+| Script | Qué hace |
+|---|---|
+| `npm run dev` | Servidor de desarrollo (con los proxies) |
+| `npm run build` / `npm run preview` | Build de producción / servirla en local (con los proxies) |
+| `npm run lint` | oxlint |
+| `npm run test:e2e` | Pruebas en un Chrome real: coherencia de números del mapa, mis ofertas, filtros, móvil |
+| `npm run screenshots` | Regenera las capturas de `docs/screenshots/` |
+| `npm run generate:geo` | Regenera `src/data/` (contornos y países) |
+
+Las pruebas y capturas usan tu Chrome instalado (`CHROME_PATH` para otra ruta) y, por defecto,
+`BASE_URL=http://localhost:5173/` (con `npm run dev` arrancado). Adzuna se bloquea en las pruebas
+para no gastar cuota; `ALLOW_ADZUNA=1` lo permite (recomendado para las capturas).
 
 ## Variables de entorno
 
@@ -47,9 +88,12 @@ Algunas fuentes no permiten CORS o necesitan claves, así que pasan por `/proxy/
 ```
 src/
 ├── components/   UI: Home (portada), CVUploader, JobCard, JobMap, Filters, SearchBar, Pagination…
-├── hooks/        useCV (CV y perfil), useJobs (carga progresiva y match), useTheme
-├── services/     cvService (PDF, skills, perfil, match), jobService (fuentes), geoService (ubicaciones)
+├── hooks/        useCV (CV y perfil), useJobs (carga progresiva y match), useSavedJobs, useTheme
+├── services/     cvService (PDF, skills, perfil, match), jobService (fuentes), geoService (ubicaciones),
+│                 jobMeta (nivel, salario en €, antigüedad)
 └── data/         countries.js y worldMap.js (generados por scripts/generate-geo.mjs)
+scripts/e2e/      pruebas e2e y capturas (puppeteer-core + Chrome instalado)
+docs/screenshots/ capturas del README
 ```
 
 Para añadir una skill: `SKILL_GROUPS` y `SKILL_ALIASES` en `src/services/cvService.js`.
